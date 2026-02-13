@@ -1,0 +1,235 @@
+/**
+ * Prisma Schema 文件 - 数据模型定义
+ * ============================================================
+ *
+ * 【什么是 Prisma Schema？】
+ * Prisma Schema 是 Prisma ORM 的核心配置文件，用来定义：
+ * 1. 数据库连接方式（datasource）
+ * 2. 客户端生成器（generator）
+ * 3. 数据模型（model）— 对应数据库中的表
+ *
+ * 【工作流程】
+ * 1. 在这里定义/修改模型
+ * 2. 运行 `npx prisma migrate dev --name xxx` 生成迁移文件并同步到数据库
+ * 3. Prisma 自动生成 TypeScript 类型和客户端代码
+ *
+ * 【学习重点】
+ * - 每个 model 对应数据库中的一张表
+ * - @id 标记主键，@unique 标记唯一约束
+ * - @relation 定义表之间的关联关系（类似 SQL 的外键）
+ * - @default 设置默认值
+ * - @map / @@map 可以自定义数据库中的列名/表名
+ */
+
+// ==================== 生成器配置 ====================
+// generator 告诉 Prisma 如何生成客户端代码
+// output 指定生成的代码存放位置
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+// ==================== 数据源配置 ====================
+// datasource 指定数据库类型
+// 注意：数据库连接 URL 在 prisma.config.ts 和 .env 中配置
+datasource db {
+  provider = "mysql"
+}
+
+// ==================== 枚举类型 ====================
+
+/**
+ * 用户角色枚举
+ * 枚举（enum）用于限制字段只能取预定义的值
+ * 比如角色只能是 USER 或 ADMIN，不能是其他值
+ */
+enum Role {
+  USER  // 普通用户 - 可以浏览商品、下单购买
+  ADMIN // 管理员 - 可以管理商品、订单、用户
+}
+
+/**
+ * 订单状态枚举
+ * 订单的生命周期：待付款 → 已付款 → 已发货 → 已完成
+ *                                              ↘ 已取消
+ */
+enum OrderStatus {
+  PENDING   // 待付款 - 订单刚创建
+  PAID      // 已付款 - 用户完成支付
+  SHIPPED   // 已发货 - 商家已发货
+  COMPLETED // 已完成 - 用户确认收货
+  CANCELLED // 已取消 - 用户取消或超时
+}
+
+// ==================== 数据模型 ====================
+
+/**
+ * 用户模型 - 存储注册用户的信息
+ *
+ * 【关联关系说明】
+ * 一个用户可以有：多个购物车项、多个订单、多个收货地址
+ * 这是一对多（1:N）关系
+ */
+model User {
+  id        String   @id @default(cuid())
+  // cuid() 生成类似 "clxyz123abc" 的唯一 ID
+  // 相比自增数字 ID，cuid 更安全（不暴露用户数量）且适合分布式系统
+
+  name      String               // 用户昵称
+  email     String   @unique     // 邮箱，加 @unique 确保不重复
+  password  String               // 密码（存储 bcrypt 加密后的哈希值，永远不存明文！）
+  role      Role     @default(USER) // 角色，默认为普通用户
+  avatar    String?              // 头像 URL，? 表示可选（可以为 null）
+
+  createdAt DateTime @default(now())  // 注册时间，自动设为当前时间
+  updatedAt DateTime @updatedAt       // 更新时间，每次修改自动更新
+
+  // ---- 关联关系 ----
+  // 这些字段不会在数据库中创建列，只是 Prisma 用来表示关联的虚拟字段
+  cartItems CartItem[]
+  orders    Order[]
+  addresses Address[]
+
+  @@map("users") // 数据库中的表名为 "users"（默认是 "User"）
+}
+
+/**
+ * 商品分类模型
+ * 用于组织商品，比如：手机、电脑、服装 等
+ */
+model Category {
+  id   Int    @id @default(autoincrement()) // 自增主键
+  name String                                // 分类名称，如 "智能手机"
+  slug String @unique                        // URL 友好的标识符，如 "smartphones"
+  // slug 用在 URL 中：/categories/smartphones 比 /categories/1 更友好
+  image     String?  // 分类图片 URL
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  products Product[] // 一个分类下有多个商品
+
+  @@map("categories")
+}
+
+/**
+ * 商品模型 - 电商的核心模型
+ *
+ * 【学习重点：@db 修饰符】
+ * @db.Text - 对应 MySQL 的 TEXT 类型（长文本，最大 65535 字符）
+ * @db.Decimal(10, 2) - 对应 MySQL 的 DECIMAL(10,2)（精确到小数点后2位）
+ * 为什么价格用 Decimal 而不是 Float？因为浮点数有精度问题！
+ * 例如：0.1 + 0.2 = 0.30000000000000004（用 Float）
+ *       0.1 + 0.2 = 0.30（用 Decimal，精确计算）
+ */
+model Product {
+  id          Int     @id @default(autoincrement())
+  name        String                      // 商品名称
+  description String  @db.Text            // 商品描述（支持长文本）
+  price       Decimal @db.Decimal(10, 2)  // 价格，最大 99999999.99
+  stock       Int     @default(0)         // 库存数量
+  images      String  @db.Text            // 商品图片 URL 列表（JSON 字符串）
+  // 为什么用 JSON 字符串而不是单独的图片表？
+  // 简单场景下，JSON 字符串更简洁；复杂场景建议用单独的 ProductImage 表
+  isActive    Boolean @default(true)      // 是否上架（下架后用户看不到）
+
+  categoryId  Int                         // 外键：关联到分类表
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // ---- 关联关系 ----
+  // @relation 定义外键关系：categoryId 字段引用 Category 表的 id 字段
+  category   Category    @relation(fields: [categoryId], references: [id])
+  cartItems  CartItem[]
+  orderItems OrderItem[]
+
+  @@map("products")
+}
+
+/**
+ * 购物车项模型
+ *
+ * 【设计思路】
+ * 购物车不是一个单独的"购物车"表，而是"购物车项"表
+ * 每条记录表示：某个用户 → 某个商品 → 数量
+ * 用 @@unique([userId, productId]) 确保同一用户同一商品只有一条记录
+ * （如果用户重复添加，只增加数量）
+ */
+model CartItem {
+  id        Int    @id @default(autoincrement())
+  userId    String // 哪个用户的购物车
+  productId Int    // 哪个商品
+  quantity  Int    @default(1) // 数量
+
+  // 关联关系
+  // onDelete: Cascade 表示：如果用户被删除，其购物车也一起删除
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId]) // 联合唯一约束
+  @@map("cart_items")
+}
+
+/**
+ * 订单模型
+ *
+ * 【为什么地址存 JSON 而不是关联 Address 表？】
+ * 因为用户可能在下单后修改/删除地址，但订单的收货地址应该保持不变
+ * 这叫做"数据快照" — 记录下单时的状态
+ */
+model Order {
+  id          Int         @id @default(autoincrement())
+  orderNo     String      @unique // 订单编号（如 "ORD20240101001"）
+  userId      String
+  totalAmount Decimal     @db.Decimal(10, 2) // 订单总金额
+  status      OrderStatus @default(PENDING)  // 订单状态
+  address     String      @db.Text           // 收货地址快照（JSON）
+
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  user  User        @relation(fields: [userId], references: [id])
+  items OrderItem[] // 订单包含的商品列表
+
+  @@map("orders")
+}
+
+/**
+ * 订单商品项
+ *
+ * 【为什么要单独记录 price？】
+ * 商品价格可能会变动（打折、涨价），但订单中的价格应该是下单时的价格
+ * 所以这里存储的是"价格快照"，而不是直接引用商品当前价格
+ */
+model OrderItem {
+  id        Int     @id @default(autoincrement())
+  orderId   Int
+  productId Int
+  quantity  Int
+  price     Decimal @db.Decimal(10, 2) // 下单时的商品单价（快照）
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+
+  @@map("order_items")
+}
+
+/**
+ * 收货地址模型
+ * 一个用户可以有多个收货地址，其中一个设为默认地址
+ */
+model Address {
+  id        Int     @id @default(autoincrement())
+  userId    String
+  name      String  // 收件人姓名
+  phone     String  // 收件人电话
+  province  String  // 省
+  city      String  // 市
+  district  String  // 区
+  detail    String  // 详细地址
+  isDefault Boolean @default(false) // 是否为默认地址
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("addresses")
+}

@@ -1,0 +1,50 @@
+# Docker Compose 配置 - MySQL 数据库
+# ============================================================
+#
+# 【什么是 Docker Compose？】
+# Docker Compose 可以通过一个配置文件，一键启动多个服务容器。
+# 这里我们用它来运行 MySQL 数据库，不需要在本地安装 MySQL。
+#
+# 【使用方式】
+# 启动：docker compose up -d
+# 停止：docker compose down
+# 查看日志：docker compose logs -f mysql
+# 进入 MySQL 命令行：docker compose exec mysql mysql -u root -p
+#
+# 【数据持久化】
+# 数据库数据存储在 Docker Volume (mysql_data) 中，
+# 即使容器被删除，数据也不会丢失。
+
+services:
+  mysql:
+    image: mysql:8.0               # 使用 MySQL 8.0 官方镜像
+    container_name: nextshop-mysql # 容器名称，方便管理
+    restart: unless-stopped        # 异常退出时自动重启
+
+    ports:
+      - "3306:3306"                # 将容器的 3306 端口映射到主机的 3306 端口
+
+    environment:
+      MYSQL_ROOT_PASSWORD: root123     # root 用户密码
+      MYSQL_DATABASE: nextshop         # 自动创建的数据库名
+      MYSQL_USER: nextshop             # 创建的普通用户
+      MYSQL_PASSWORD: nextshop123      # 普通用户密码
+      TZ: Asia/Shanghai                # 时区设置
+
+    volumes:
+      - mysql_data:/var/lib/mysql      # 数据持久化
+
+    command:
+      # MySQL 8.0 配置参数
+      --default-authentication-plugin=mysql_native_password  # 兼容旧版客户端
+      --character-set-server=utf8mb4                         # 支持中文和 emoji
+      --collation-server=utf8mb4_unicode_ci                  # 排序规则
+
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+volumes:
+  mysql_data:                          # 声明数据卷

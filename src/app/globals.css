@@ -1,7 +1,19 @@
+/**
+ * 全局样式文件
+ * ============================================================
+ *
+ * 【Tailwind CSS v4】
+ * @import "tailwindcss" 导入 Tailwind 的所有工具类。
+ * Tailwind v4 使用 CSS-first 配置，不再需要 tailwind.config.js。
+ *
+ * 【@theme inline】
+ * 定义 CSS 自定义主题变量，Tailwind 会将其转化为可用的工具类。
+ */
+
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
+  --background: #f9fafb;
   --foreground: #171717;
 }
 
@@ -12,15 +24,38 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+/* ---- 全局基础样式 ---- */
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans, Arial, Helvetica, sans-serif);
+}
+
+/* ---- 文本截断工具类（Tailwind v4 内置） ---- */
+/* line-clamp-1, line-clamp-2 用于限制文本显示行数 */
+
+/* ---- 滚动条美化 ---- */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+/* ---- 占位图片样式（当图片加载失败时） ---- */
+img {
+  /* 防止图片超出容器 */
+  max-width: 100%;
+  height: auto;
 }

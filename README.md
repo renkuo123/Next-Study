@@ -1,36 +1,859 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# NextShop — Next.js 全栈电商平台
 
-## Getting Started
+> 一个专为前端开发者设计的 Node.js / Next.js 全栈学习项目。
+> 包含 SSR 服务端渲染、RESTful API、数据库操作、认证鉴权、状态管理等核心后端知识。
 
-First, run the development server:
+---
+
+## 目录
+
+- [技术栈](#技术栈)
+- [快速启动](#快速启动)
+  - [方式一：Docker（推荐）](#方式一docker推荐)
+  - [方式二：Homebrew 安装 MySQL](#方式二homebrew-安装-mysql)
+- [项目结构](#项目结构)
+- [核心概念详解](#核心概念详解)
+  - [1. Server Component vs Client Component](#1-server-component-vs-client-component)
+  - [2. API Route Handlers（后端接口）](#2-api-route-handlers后端接口)
+  - [3. Prisma ORM（数据库操作）](#3-prisma-orm数据库操作)
+  - [4. NextAuth.js（认证系统）](#4-nextauthjs认证系统)
+  - [5. Middleware（中间件）](#5-middleware中间件)
+  - [6. Zustand（客户端状态管理）](#6-zustand客户端状态管理)
+  - [7. Zod（数据验证）](#7-zod数据验证)
+- [页面路由一览](#页面路由一览)
+- [API 接口一览](#api-接口一览)
+- [数据模型关系图](#数据模型关系图)
+- [整体架构图](#整体架构图)
+- [常用命令](#常用命令)
+- [学习路线建议](#学习路线建议)
+
+---
+
+## 技术栈
+
+| 技术 | 用途 | 为什么选它？ |
+|------|------|-------------|
+| **Next.js 16** | 全栈框架 | App Router 支持 SSR/SSG/API 一体化 |
+| **TypeScript** | 类型安全 | 前端工程师最熟悉的强类型语言 |
+| **Prisma v7** | 数据库 ORM | 类型安全、自动补全，比手写 SQL 更友好 |
+| **MySQL 8.0** | 关系型数据库 | 业界最流行的开源数据库 |
+| **NextAuth.js v5** | 认证鉴权 | 开箱即用，支持 JWT + OAuth |
+| **Tailwind CSS v4** | 样式 | 原子化 CSS，前端工程师都懂 |
+| **Zustand** | 客户端状态 | 比 Redux 简单 10 倍的状态管理 |
+| **Zod v4** | 数据验证 | 前后端共用同一套验证规则 |
+| **Docker** | 容器化 | 一键启动 MySQL，无需本地安装 |
+
+---
+
+## 快速启动
+
+### 前置要求
+
+- Node.js 22+（推荐使用 nvm 管理版本）
+- Docker Desktop **或者** Homebrew（二选一，用于运行 MySQL）
+
+---
+
+### 方式一：Docker（推荐）
+
+> Docker 是最简单的方式，不需要在本地安装和配置 MySQL。
+
+**第 1 步：安装 Docker Desktop**
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+# 用 Homebrew 安装 Docker Desktop
+brew install --cask docker
+
+# 安装后打开 Docker Desktop 应用，等待 Docker Engine 启动完成
+# 菜单栏出现 🐳 图标表示启动成功
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+**第 2 步：启动 MySQL 数据库**
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+# 在项目根目录下运行（会自动下载 MySQL 镜像并启动）
+docker compose up -d
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+# 查看容器状态（确认 mysql 状态为 healthy）
+docker compose ps
 
-## Learn More
+# 查看 MySQL 日志
+docker compose logs -f mysql
+```
 
-To learn more about Next.js, take a look at the following resources:
+**第 3 步：配置环境变量**
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+# 复制环境变量示例文件
+cp .env.example .env
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+使用 Docker 的默认配置，`.env` 文件中的 `DATABASE_URL` 应为：
 
-## Deploy on Vercel
+```
+DATABASE_URL="mysql://nextshop:nextshop123@localhost:3306/nextshop"
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+**第 4 步：初始化数据库 & 启动项目**
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+# 1. 生成 Prisma Client（将数据模型编译为 TypeScript 代码）
+npx prisma generate
+
+# 2. 将数据模型同步到 MySQL 数据库（创建表结构）
+npx prisma db push
+
+# 3. 填充种子数据（管理员账户 + 测试商品）
+npx prisma db seed
+
+# 4. 启动开发服务器
+npm run dev
+```
+
+打开浏览器访问 http://localhost:3000 🎉
+
+---
+
+### 方式二：Homebrew 安装 MySQL
+
+> 如果不想用 Docker，可以直接在 macOS 上安装 MySQL。
+
+**第 1 步：安装 MySQL**
+
+```bash
+# 安装 MySQL 8.0
+brew install mysql
+
+# 启动 MySQL 服务
+brew services start mysql
+
+# 验证是否启动成功
+mysql -u root -e "SELECT 1"
+```
+
+**第 2 步：创建数据库**
+
+```bash
+# 登录 MySQL 命令行
+mysql -u root
+
+# 执行以下 SQL 创建数据库和用户
+```
+
+```sql
+-- 创建数据库（使用 utf8mb4 支持中文和 emoji）
+CREATE DATABASE nextshop CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- 创建专用用户（生产环境不建议用 root）
+CREATE USER 'nextshop'@'localhost' IDENTIFIED BY 'nextshop123';
+
+-- 授权
+GRANT ALL PRIVILEGES ON nextshop.* TO 'nextshop'@'localhost';
+FLUSH PRIVILEGES;
+
+-- 退出
+EXIT;
+```
+
+**第 3 步：配置环境变量**
+
+```bash
+cp .env.example .env
+```
+
+修改 `.env` 中的 `DATABASE_URL`：
+
+```
+# 使用刚才创建的用户
+DATABASE_URL="mysql://nextshop:nextshop123@localhost:3306/nextshop"
+
+# 或者直接用 root（Homebrew 默认 root 无密码）
+# DATABASE_URL="mysql://root@localhost:3306/nextshop"
+```
+
+**第 4 步：初始化数据库 & 启动项目**
+
+```bash
+npx prisma generate
+npx prisma db push
+npx prisma db seed
+npm run dev
+```
+
+---
+
+### 测试账户
+
+种子数据会自动创建以下测试账户：
+
+| 角色 | 邮箱 | 密码 |
+|------|------|------|
+| 管理员 | admin@nextshop.com | admin123 |
+| 普通用户 | user@nextshop.com | user123 |
+
+---
+
+## 项目结构
+
+```
+nextjs/
+├── prisma/
+│   ├── schema.prisma          # 📌 数据模型定义（最重要的文件之一）
+│   └── seed.ts                # 种子数据脚本
+├── prisma.config.ts           # Prisma v7 配置文件
+├── docker-compose.yml         # Docker MySQL 配置
+├── src/
+│   ├── app/                   # 📌 Next.js App Router（页面 & API）
+│   │   ├── layout.tsx         # 根布局（HTML 结构、全局 Provider）
+│   │   ├── globals.css        # 全局样式
+│   │   │
+│   │   ├── (auth)/            # 🔐 认证页面组
+│   │   │   ├── layout.tsx     #   认证页面专属布局（居中卡片样式）
+│   │   │   ├── login/page.tsx #   登录页
+│   │   │   └── register/page.tsx  # 注册页
+│   │   │
+│   │   ├── (shop)/            # 🛍️ 前台商城页面组
+│   │   │   ├── layout.tsx     #   商城布局（Header + Footer）
+│   │   │   ├── loading.tsx    #   加载状态 UI
+│   │   │   ├── error.tsx      #   错误状态 UI
+│   │   │   ├── page.tsx       #   首页（SSR：直接查数据库！）
+│   │   │   ├── products/
+│   │   │   │   ├── page.tsx           # 商品列表（搜索、分类、分页）
+│   │   │   │   └── [id]/
+│   │   │   │       ├── page.tsx       # 商品详情（动态路由 + SEO）
+│   │   │   │       └── AddToCartButton.tsx  # 加入购物车按钮
+│   │   │   ├── categories/
+│   │   │   │   └── [slug]/page.tsx    # 分类商品页
+│   │   │   ├── cart/page.tsx          # 购物车页
+│   │   │   ├── checkout/page.tsx      # 结算页
+│   │   │   └── user/
+│   │   │       ├── layout.tsx         # 用户中心布局
+│   │   │       ├── profile/page.tsx   # 个人信息 + 地址管理
+│   │   │       └── orders/page.tsx    # 我的订单
+│   │   │
+│   │   ├── admin/             # 👑 后台管理页面
+│   │   │   ├── layout.tsx     #   管理后台布局（侧边栏）
+│   │   │   ├── loading.tsx    #   加载状态
+│   │   │   ├── error.tsx      #   错误状态
+│   │   │   ├── page.tsx       #   Dashboard（统计面板）
+│   │   │   ├── products/      #   商品管理（CRUD）
+│   │   │   ├── orders/        #   订单管理
+│   │   │   ├── categories/    #   分类管理
+│   │   │   └── users/         #   用户管理
+│   │   │
+│   │   └── api/               # 🔌 后端 API 路由
+│   │       ├── auth/[...nextauth]/route.ts  # NextAuth 认证端点
+│   │       ├── register/route.ts            # 注册接口
+│   │       ├── cart/                        # 购物车 CRUD
+│   │       ├── orders/                      # 订单管理
+│   │       ├── payment/route.ts             # 模拟支付
+│   │       ├── user/                        # 用户信息 & 地址
+│   │       └── admin/                       # 管理员专用接口
+│   │
+│   ├── components/            # 📦 可复用组件
+│   │   ├── Providers.tsx      #   全局 Provider（Session 等）
+│   │   ├── layout/
+│   │   │   ├── Header.tsx     #   顶部导航栏
+│   │   │   ├── Footer.tsx     #   底部信息栏
+│   │   │   └── AdminSidebar.tsx  # 后台侧边栏
+│   │   └── product/
+│   │       ├── ProductCard.tsx    # 商品卡片
+│   │       └── ProductList.tsx    # 商品列表
+│   │
+│   ├── lib/                   # 🛠️ 核心库文件
+│   │   ├── prisma.ts          #   数据库连接（单例模式）
+│   │   ├── auth.ts            #   NextAuth 完整配置
+│   │   ├── auth.config.ts     #   NextAuth 基础配置（Edge 兼容）
+│   │   ├── validators.ts      #   Zod 验证规则
+│   │   └── utils.ts           #   通用工具函数
+│   │
+│   ├── store/                 # 📊 客户端状态管理
+│   │   └── cart.ts            #   购物车 Zustand Store
+│   │
+│   ├── types/                 # 🏷️ TypeScript 类型定义
+│   │   └── index.ts           #   自定义类型 + NextAuth 类型扩展
+│   │
+│   ├── middleware.ts          # 🚧 路由中间件（认证拦截）
+│   │
+│   └── generated/prisma/     # 🤖 Prisma 自动生成的代码（不要手动修改）
+│
+├── .env.example               # 环境变量示例
+├── package.json               # 依赖和脚本
+└── tsconfig.json              # TypeScript 配置
+```
+
+### 路由组 `(auth)` `(shop)` 是什么？
+
+Next.js App Router 中，用圆括号包裹的文件夹名叫 **Route Group**（路由组）。
+它 **不会** 出现在 URL 路径中，只用于组织代码和共享布局。
+
+```
+(auth)/login/page.tsx  → URL: /login     （不是 /auth/login）
+(shop)/page.tsx        → URL: /          （不是 /shop）
+(shop)/products/page.tsx → URL: /products
+```
+
+---
+
+## 核心概念详解
+
+### 1. Server Component vs Client Component
+
+这是从前端转全栈最重要的概念！
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Next.js 渲染模型                          │
+├──────────────────────────┬──────────────────────────────────┤
+│   Server Component       │   Client Component              │
+│   （默认，在服务端执行）    │   （'use client'，在浏览器执行） │
+├──────────────────────────┼──────────────────────────────────┤
+│ ✅ 直接查数据库            │ ✅ useState / useEffect         │
+│ ✅ 访问服务端资源           │ ✅ 事件处理（onClick 等）        │
+│ ✅ 读取环境变量            │ ✅ 浏览器 API（localStorage 等） │
+│ ✅ async/await 组件        │ ✅ 第三方 UI 库                  │
+│ ❌ 不能用 useState        │ ❌ 不能直接查数据库              │
+│ ❌ 不能用 onClick          │ ❌ 不能读取服务端环境变量         │
+└──────────────────────────┴──────────────────────────────────┘
+```
+
+**项目实例：**
+
+```tsx
+// src/app/(shop)/page.tsx — Server Component（没有 'use client'）
+// 这段代码在服务端执行，浏览器看不到数据库查询代码！
+export default async function HomePage() {
+  const products = await prisma.product.findMany({ take: 8 })
+  //                ^^^^^ 直接 await 查数据库！
+  return <ProductList products={products} />
+}
+
+// src/app/(shop)/products/[id]/AddToCartButton.tsx — Client Component
+'use client'  // 声明这是客户端组件
+export default function AddToCartButton() {
+  const [loading, setLoading] = useState(false)
+  //                           ^^^^^^^^ 需要状态，所以用 Client Component
+  const handleClick = async () => { /* 调用 API */ }
+  return <button onClick={handleClick}>加入购物车</button>
+}
+```
+
+> 💡 **记住这个原则：** 能用 Server Component 就用 Server Component。只有需要交互（状态、事件）时才用 Client Component。
+
+---
+
+### 2. API Route Handlers（后端接口）
+
+在 Next.js 中，`app/api/` 目录下的 `route.ts` 文件就是后端 API 接口。
+
+```
+src/app/api/cart/route.ts     → GET  /api/cart（获取购物车）
+                              → POST /api/cart（添加商品）
+src/app/api/cart/[id]/route.ts → PATCH  /api/cart/123（更新数量）
+                              → DELETE /api/cart/123（删除商品）
+```
+
+**代码示例：**
+
+```tsx
+// src/app/api/cart/route.ts
+import { NextResponse } from 'next/server'
+
+// 导出 GET 函数 = 处理 GET /api/cart 请求
+export async function GET(request: Request) {
+  // 1. 获取当前登录用户
+  const session = await auth()
+  if (!session) {
+    return NextResponse.json({ error: '未登录' }, { status: 401 })
+  }
+
+  // 2. 查询数据库
+  const cartItems = await prisma.cartItem.findMany({
+    where: { userId: session.user.id },
+  })
+
+  // 3. 返回 JSON 响应
+  return NextResponse.json({ success: true, data: cartItems })
+}
+
+// 导出 POST 函数 = 处理 POST /api/cart 请求
+export async function POST(request: Request) {
+  const body = await request.json()  // 解析请求体
+  // ... 验证、入库、返回结果
+}
+```
+
+> 💡 **类比前端：** Route Handler 就像 Express 的 `app.get('/api/cart', handler)`，但不需要手动配置路由——文件路径就是路由！
+
+---
+
+### 3. Prisma ORM（数据库操作）
+
+Prisma 是连接数据库的桥梁。你在 `schema.prisma` 中定义数据模型，Prisma 自动生成 TypeScript 代码。
+
+**核心操作速查表：**
+
+```typescript
+import { prisma } from '@/lib/prisma'
+
+// ---- 查询 ----
+// 查找所有商品
+const products = await prisma.product.findMany()
+
+// 按条件查找（WHERE）
+const product = await prisma.product.findUnique({
+  where: { id: 1 }
+})
+
+// 模糊搜索 + 分页 + 排序
+const results = await prisma.product.findMany({
+  where: {
+    name: { contains: '手机' },         // LIKE '%手机%'
+    price: { gte: 100, lte: 5000 },     // 100 <= price <= 5000
+  },
+  include: { category: true },          // JOIN 关联查询
+  orderBy: { price: 'asc' },            // ORDER BY price ASC
+  skip: 10,                             // OFFSET 10（跳过前10条）
+  take: 20,                             // LIMIT 20（取20条）
+})
+
+// ---- 创建 ----
+const user = await prisma.user.create({
+  data: {
+    name: '张三',
+    email: 'zhangsan@test.com',
+    password: hashedPassword,
+  }
+})
+
+// ---- 更新 ----
+await prisma.product.update({
+  where: { id: 1 },
+  data: { stock: { decrement: 1 } }  // 库存 -1
+})
+
+// ---- 删除 ----
+await prisma.product.delete({
+  where: { id: 1 }
+})
+
+// ---- 聚合 ----
+const count = await prisma.user.count()                    // SELECT COUNT(*)
+const sales = await prisma.order.aggregate({
+  _sum: { totalAmount: true }                              // SELECT SUM(totalAmount)
+})
+
+// ---- 事务 ----
+// 事务确保多个操作要么全部成功，要么全部回滚
+await prisma.$transaction([
+  prisma.cartItem.deleteMany({ where: { userId } }),       // 清空购物车
+  prisma.order.create({ data: orderData }),                 // 创建订单
+  prisma.product.update({ where: { id }, data: ... }),     // 扣减库存
+])
+```
+
+> 💡 **对比前端：** 如果你用过 Sequelize 或 TypeORM，Prisma 的 API 更直觉。它的自动补全非常强大——你输入 `prisma.product.` 后 IDE 会列出所有可用方法和字段。
+
+---
+
+### 4. NextAuth.js（认证系统）
+
+本项目使用 JWT（JSON Web Token）方式进行认证，认证配置被拆分为两个文件：
+
+```
+认证架构：
+
+  ┌─────────────────────────────────────────┐
+  │            auth.config.ts               │
+  │  （基础配置，Edge 兼容）                   │
+  │  • JWT 回调（将用户 ID/角色编入 Token）    │
+  │  • Session 回调（从 Token 还原用户信息）   │
+  │  • 授权规则（哪些路由需要登录）             │
+  │  • 页面配置（自定义登录页路径）             │
+  └──────────────┬──────────────────────────┘
+                 │
+    ┌────────────┼────────────┐
+    │            │            │
+    ▼            ▼            ▼
+  middleware    auth.ts    API Routes
+  (Edge Runtime) (Node.js)
+  路由拦截      完整认证     接口鉴权
+               (含 Prisma
+                + bcrypt)
+```
+
+**登录流程：**
+
+```
+用户提交邮箱+密码
+       │
+       ▼
+  POST /api/auth/callback/credentials
+       │
+       ▼
+  authorize() 回调
+  ├─ prisma.user.findUnique({ email })  ← 查数据库
+  ├─ bcrypt.compare(明文密码, 哈希值)     ← 比对密码
+  └─ 返回 { id, name, email, role }
+       │
+       ▼
+  jwt() 回调 → 将 id, role 写入 JWT Token
+       │
+       ▼
+  Token 存入 HttpOnly Cookie（浏览器自动携带）
+       │
+       ▼
+  后续请求 → session() 回调 → 从 Token 读取用户信息
+```
+
+---
+
+### 5. Middleware（中间件）
+
+中间件是"请求门卫"，每个页面请求都会先经过中间件检查。
+
+```typescript
+// src/middleware.ts
+// 所有匹配 matcher 的请求都会经过这里
+
+// 权限规则（在 auth.config.ts 的 authorized 回调中）：
+// 1. /user/*, /checkout → 需要登录，否则跳转到 /login
+// 2. /admin/*           → 需要 ADMIN 角色，否则跳转到 /
+// 3. /login, /register  → 已登录用户跳转到 /
+// 4. 其他页面            → 放行
+```
+
+```
+请求流程：
+
+  浏览器请求 /admin/products
+       │
+       ▼
+  middleware.ts（Edge Runtime）
+  └─ auth.config.ts 的 authorized() 回调
+     ├─ 检查 Cookie 中的 JWT Token
+     ├─ 解析出用户角色
+     ├─ role === 'ADMIN' ? ✅ 放行 : ❌ 重定向到 /
+       │
+       ▼
+  /admin/products/page.tsx（服务端渲染）
+```
+
+---
+
+### 6. Zustand（客户端状态管理）
+
+购物车使用 Zustand 管理客户端实时状态，同时通过 API 同步到数据库。
+
+```
+购物车数据流：
+
+  ┌──────────┐     API 请求      ┌──────────┐
+  │  Zustand  │ ◄──────────────► │  数据库   │
+  │ (客户端)  │   POST /api/cart │ (服务端)  │
+  │           │   GET /api/cart  │           │
+  └─────┬─────┘                  └───────────┘
+        │
+  React 组件自动更新 UI
+```
+
+```typescript
+// 使用方式超简单：
+import { useCartStore } from '@/store/cart'
+
+function CartIcon() {
+  const totalItems = useCartStore((state) => state.totalItems)
+  return <span>🛒 {totalItems()}</span>
+}
+```
+
+---
+
+### 7. Zod（数据验证）
+
+Zod 实现前后端共用同一套验证规则：
+
+```
+  ┌───────────────────────────────────────────────┐
+  │         validators.ts（共享验证规则）            │
+  │  loginSchema / registerSchema / productSchema │
+  └──────────────┬─────────────────┬──────────────┘
+                 │                 │
+        ┌────────▼────────┐  ┌────▼────────────┐
+        │   前端页面       │  │   API Route     │
+        │  表单即时验证    │  │  入库前再次验证   │
+        │ （提升用户体验） │  │ （确保数据安全）  │
+        └─────────────────┘  └─────────────────┘
+```
+
+```typescript
+// 前后端通用
+import { loginSchema } from '@/lib/validators'
+
+const result = loginSchema.safeParse({ email, password })
+if (!result.success) {
+  // result.error.issues → 包含所有验证错误
+} else {
+  // result.data → 类型安全的数据
+}
+```
+
+---
+
+## 页面路由一览
+
+### 前台（商城）
+
+| 路径 | 渲染方式 | 说明 |
+|------|---------|------|
+| `/` | SSR（动态） | 首页，展示推荐商品和分类 |
+| `/products` | SSR（动态） | 商品列表，支持搜索/筛选/分页 |
+| `/products/:id` | SSR（动态） | 商品详情，动态 SEO |
+| `/categories/:slug` | SSR（动态） | 分类商品列表 |
+| `/cart` | CSR（客户端） | 购物车 |
+| `/checkout` | CSR（客户端） | 结算下单 |
+| `/login` | 静态 | 登录 |
+| `/register` | 静态 | 注册 |
+| `/user/profile` | CSR（客户端） | 个人信息 + 地址管理 |
+| `/user/orders` | CSR（客户端） | 我的订单 |
+
+### 后台（管理员）
+
+| 路径 | 渲染方式 | 说明 |
+|------|---------|------|
+| `/admin` | SSR（动态） | Dashboard 数据统计 |
+| `/admin/products` | SSR（动态） | 商品管理列表 |
+| `/admin/products/new` | SSR（动态） | 新增商品 |
+| `/admin/products/:id/edit` | SSR（动态） | 编辑商品 |
+| `/admin/orders` | SSR（动态） | 订单管理 |
+| `/admin/categories` | CSR（客户端） | 分类管理 |
+| `/admin/users` | SSR（动态） | 用户管理 |
+
+> **渲染方式说明：**
+> - **SSR（动态）**：每次请求都在服务端查询数据库渲染 → 数据实时
+> - **CSR（客户端）**：页面在浏览器中渲染，通过 API 获取数据 → 支持交互
+> - **静态**：构建时生成，无需数据库 → 最快
+
+---
+
+## API 接口一览
+
+### 认证
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/api/register` | 用户注册 |
+| POST | `/api/auth/callback/credentials` | 用户登录（NextAuth 自动处理） |
+| GET | `/api/auth/session` | 获取当前会话（NextAuth 自动处理） |
+
+### 购物车
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/cart` | 获取购物车列表 |
+| POST | `/api/cart` | 添加商品到购物车 |
+| PATCH | `/api/cart/:id` | 更新购物车商品数量 |
+| DELETE | `/api/cart/:id` | 删除购物车商品 |
+
+### 订单
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/orders` | 获取我的订单列表 |
+| POST | `/api/orders` | 创建订单 |
+| GET | `/api/orders/:id` | 获取订单详情 |
+| POST | `/api/payment` | 模拟支付 |
+
+### 用户
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/user/profile` | 获取个人信息 |
+| PATCH | `/api/user/profile` | 更新个人信息 |
+| GET | `/api/user/addresses` | 获取地址列表 |
+| POST | `/api/user/addresses` | 添加地址 |
+| PATCH | `/api/user/addresses/:id` | 更新地址 |
+| DELETE | `/api/user/addresses/:id` | 删除地址 |
+
+### 管理员
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/admin/products` | 获取商品列表（管理员） |
+| POST | `/api/admin/products` | 创建商品 |
+| GET | `/api/admin/products/:id` | 获取商品详情 |
+| PATCH | `/api/admin/products/:id` | 更新商品 |
+| DELETE | `/api/admin/products/:id` | 删除商品 |
+| GET | `/api/admin/categories` | 获取分类列表 |
+| POST | `/api/admin/categories` | 创建分类 |
+| PATCH | `/api/admin/categories/:id` | 更新分类 |
+| DELETE | `/api/admin/categories/:id` | 删除分类 |
+| GET | `/api/admin/orders/:id` | 获取订单详情 |
+| PATCH | `/api/admin/orders/:id` | 更新订单状态 |
+| GET | `/api/admin/users` | 获取用户列表 |
+| PATCH | `/api/admin/users` | 更新用户角色 |
+
+---
+
+## 数据模型关系图
+
+```
+┌──────────┐      ┌─────────────┐      ┌──────────┐
+│   User   │──1:N──│  CartItem   │──N:1──│ Product  │
+│          │      └─────────────┘      │          │
+│  id      │                           │ id       │
+│  name    │      ┌─────────────┐      │ name     │
+│  email   │──1:N──│   Order     │      │ price    │
+│  password│      │             │      │ stock    │
+│  role    │      │ id          │      │ images   │
+│          │      │ orderNo     │      │          │
+│          │      │ totalAmount │      │          │
+│          │      │ status      │      │ categoryId│──N:1──┐
+│          │      │ address     │      └──────────┘       │
+│          │      └──────┬──────┘                    ┌─────┴────┐
+│          │             │                           │ Category │
+│          │      ┌──────┴──────┐                    │          │
+│          │      │  OrderItem  │──N:1──Product      │ id       │
+│          │      │  quantity   │                    │ name     │
+│          │──1:N──│  price      │                    │ slug     │
+│          │      └─────────────┘                    └──────────┘
+│          │
+│          │──1:N──┌─────────────┐
+│          │      │   Address   │
+└──────────┘      │ name, phone │
+                  │ province    │
+                  │ city        │
+                  │ detail      │
+                  └─────────────┘
+```
+
+---
+
+## 整体架构图
+
+```
+  浏览器                    Next.js 服务端                    数据库
+  ──────                    ──────────────                    ──────
+
+  ┌──────────┐
+  │ 页面请求  │─────────────────────────────────────────────────┐
+  │ /products │             │                                   │
+  └──────────┘              ▼                                   │
+                    ┌───────────────┐                           │
+                    │  Middleware   │  检查登录状态              │
+                    │  (Edge Runtime)│                           │
+                    └───────┬───────┘                           │
+                            │                                   │
+                            ▼                                   │
+                    ┌───────────────┐     Prisma     ┌─────────┴──┐
+                    │    Server     │──────ORM──────►│   MySQL    │
+                    │   Component  │◄──────────────│   数据库    │
+                    │  (服务端渲染)  │   查询结果      └────────────┘
+                    └───────┬───────┘
+                            │ HTML
+                            ▼
+                    ┌───────────────┐
+                    │   浏览器渲染   │
+                    │  Server HTML  │
+                    │  + Client JS  │
+                    └───────┬───────┘
+                            │
+                            ▼
+  ┌──────────┐      ┌───────────────┐     fetch      ┌────────────┐
+  │ 用户交互  │─────►│    Client     │──────────────►│  API Route │
+  │ (点击等)  │      │   Component  │◄──────────────│ /api/cart  │
+  └──────────┘      │  (客户端渲染)  │    JSON        │            │
+                    └───────────────┘                │  Prisma    │
+                            ▲                        │  ↕ MySQL   │
+                            │                        └────────────┘
+                    ┌───────────────┐
+                    │   Zustand    │
+                    │  状态管理     │
+                    └───────────────┘
+```
+
+---
+
+## 常用命令
+
+```bash
+# ==================== 开发 ====================
+npm run dev                  # 启动开发服务器（http://localhost:3000）
+npm run build                # 构建生产版本
+npm run start                # 启动生产服务器
+
+# ==================== 数据库 ====================
+npx prisma generate          # 生成 Prisma Client（修改 schema 后执行）
+npx prisma db push           # 将 schema 同步到数据库（开发用，不生成迁移文件）
+npx prisma migrate dev       # 创建迁移文件并应用（团队协作时使用）
+npx prisma db seed           # 运行种子数据脚本
+npx prisma studio            # 打开 Prisma Studio（数据库可视化管理工具）
+npx prisma migrate reset     # 重置数据库（清空所有数据并重新执行迁移+种子）
+
+# ==================== Docker ====================
+docker compose up -d         # 启动 MySQL 容器
+docker compose down          # 停止 MySQL 容器
+docker compose logs -f mysql # 查看 MySQL 日志
+docker compose exec mysql mysql -u root -proot123 nextshop  # 进入 MySQL 命令行
+```
+
+---
+
+## 学习路线建议
+
+建议按以下顺序阅读代码，每个文件都有详细的中文注释：
+
+### 第一阶段：理解基础
+
+1. **`prisma/schema.prisma`** — 数据模型定义，理解表结构和关系
+2. **`src/lib/prisma.ts`** — 数据库连接，理解单例模式和 Prisma v7 适配器
+3. **`src/lib/utils.ts`** — 通用工具函数
+4. **`src/types/index.ts`** — TypeScript 类型定义，理解泛型和类型扩展
+
+### 第二阶段：理解认证
+
+5. **`src/lib/auth.config.ts`** — NextAuth 基础配置（Edge 兼容）
+6. **`src/lib/auth.ts`** — NextAuth 完整配置（含密码验证）
+7. **`src/middleware.ts`** — 中间件路由保护
+8. **`src/app/api/register/route.ts`** — 注册接口（第一个 API Route）
+9. **`src/app/(auth)/login/page.tsx`** — 登录页（Client Component + signIn）
+10. **`src/app/(auth)/register/page.tsx`** — 注册页
+
+### 第三阶段：理解 SSR 和数据获取
+
+11. **`src/app/(shop)/page.tsx`** — 首页（Server Component 直接查数据库！）
+12. **`src/app/(shop)/products/page.tsx`** — 商品列表（搜索、分页、排序）
+13. **`src/app/(shop)/products/[id]/page.tsx`** — 商品详情（动态路由 + SEO）
+
+### 第四阶段：理解 API CRUD
+
+14. **`src/lib/validators.ts`** — Zod 验证规则
+15. **`src/app/api/cart/route.ts`** — 购物车 API（GET + POST）
+16. **`src/app/api/cart/[id]/route.ts`** — 购物车 API（PATCH + DELETE）
+17. **`src/app/api/orders/route.ts`** — 订单 API
+
+### 第五阶段：理解状态管理
+
+18. **`src/store/cart.ts`** — Zustand 购物车状态（客户端状态 + API 同步）
+19. **`src/app/(shop)/cart/page.tsx`** — 购物车页面
+
+### 第六阶段：理解管理后台
+
+20. **`src/app/admin/page.tsx`** — Dashboard（Prisma 聚合查询）
+21. **`src/app/api/admin/products/route.ts`** — 商品管理 API
+22. **`src/app/admin/products/ProductForm.tsx`** — 表单组件
+
+### 第七阶段：理解部署和优化
+
+23. **`src/app/(shop)/loading.tsx`** — Loading UI（Suspense 边界）
+24. **`src/app/(shop)/error.tsx`** — Error UI（错误边界）
+25. **`prisma/seed.ts`** — 种子数据脚本
+26. **`docker-compose.yml`** — Docker 容器化
+
+---
+
+> 🎯 **学习建议：** 每读完一个文件，尝试自己修改代码并观察效果。比如：
+> - 修改 `schema.prisma` 添加一个新字段，然后 `prisma db push` 看变化
+> - 在 API Route 中添加 `console.log()`，观察终端输出
+> - 用 `prisma studio` 直接查看数据库数据
+> - 故意写错密码登录，观察 NextAuth 的错误处理流程
